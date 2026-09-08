@@ -6,6 +6,7 @@ import com.tezza.lending.customer.internal.repository.CustomerLoanLimitRepositor
 import com.tezza.lending.customer.internal.repository.CustomerRepository;
 import com.tezza.lending.loan.api.dto.LoanRequest;
 import com.tezza.lending.loan.api.dto.LoanResponse;
+import com.tezza.lending.loan.api.dto.LoanSummaryResponse;
 import com.tezza.lending.loan.internal.entity.Loan;
 import com.tezza.lending.loan.internal.entity.enums.*;
 import com.tezza.lending.loan.internal.repository.LoanInstallmentRepository;
@@ -17,6 +18,7 @@ import com.tezza.lending.product.internal.entity.LoanProduct;
 import com.tezza.lending.product.internal.entity.enums.TenureType;
 import com.tezza.lending.product.internal.repository.LoanProductRepository;
 import com.tezza.lending.shared.exception.BusinessException;
+import com.tezza.lending.shared.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,9 +26,13 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -186,6 +192,57 @@ class LoanServiceTest {
         LoanResponse result = loanService.writeOffLoan(loan.getId());
 
         assertThat(result.getStatus()).isEqualTo(LoanStatus.WRITTEN_OFF);
+    }
+
+    @Test
+    void getLoanSummary_returnsCorrectTotals() {
+        UUID loanId = UUID.randomUUID();
+        Loan loan = new Loan();
+        loan.setId(loanId);
+        loan.setStatus(LoanStatus.OPEN);
+        loan.setPrincipalAmount(BigDecimal.valueOf(10000));
+        loan.setOutstandingBalance(BigDecimal.valueOf(7000));
+        loan.setDueDate(LocalDate.now().plusDays(30));
+        loan.setInstallments(new ArrayList<>());
+
+        when(loanRepository.findById(loanId)).thenReturn(Optional.of(loan));
+        when(installmentRepository.countByLoanIdAndStatus(loanId, InstallmentStatus.OVERDUE)).thenReturn(2);
+
+        LoanSummaryResponse result = loanService.getLoanSummary(loanId);
+
+        assertThat(result.getPrincipalAmount()).isEqualByComparingTo("10000");
+        assertThat(result.getOutstandingBalance()).isEqualByComparingTo("7000");
+        assertThat(result.getTotalPaid()).isEqualByComparingTo("3000");
+        assertThat(result.getOverdueInstallmentCount()).isEqualTo(2);
+    }
+
+    @Test
+    void getLoanSummary_notFound_throwsResourceNotFoundException() {
+        UUID loanId = UUID.randomUUID();
+        when(loanRepository.findById(loanId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> loanService.getLoanSummary(loanId))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void getCustomerLoans_returnsPagedResults() {
+        UUID customerId = UUID.randomUUID();
+        var pageable = PageRequest.of(0, 20);
+        Loan loan = new Loan();
+        loan.setCustomerId(customerId);
+        loan.setStatus(LoanStatus.OPEN);
+        loan.setPrincipalAmount(BigDecimal.valueOf(5000));
+        loan.setOutstandingBalance(BigDecimal.valueOf(5000));
+        loan.setInstallments(new ArrayList<>());
+
+        when(loanRepository.findByCustomerId(customerId, pageable))
+                .thenReturn(new PageImpl<>(List.of(loan)));
+
+        var result = loanService.getCustomerLoans(customerId, pageable);
+
+        assertThat(result.getTotalElements()).isEqualTo(1);
+        assertThat(result.getContent().get(0).getCustomerId()).isEqualTo(customerId);
     }
 
     @Test
