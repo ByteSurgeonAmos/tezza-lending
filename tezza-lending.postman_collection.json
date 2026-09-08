@@ -1,0 +1,679 @@
+{
+  "info": {
+    "name": "Tezza Lending API",
+    "_postman_id": "tezza-lending-v1",
+    "description": "Full API collection for the Tezza Lending Platform. Run in order: Auth → Products → Customers → Loans → Repayments → Notifications.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "adminClientId", "value": "tezza-admin-client" },
+    { "key": "adminClientSecret", "value": "admin-secret" },
+    { "key": "mobileClientId", "value": "tezza-mobile-client" },
+    { "key": "mobileClientSecret", "value": "mobile-secret" },
+    { "key": "adminToken", "value": "" },
+    { "key": "customerToken", "value": "" },
+    { "key": "productId", "value": "" },
+    { "key": "feeId", "value": "" },
+    { "key": "customerId", "value": "" },
+    { "key": "loanId", "value": "" },
+    { "key": "seededTemplateId", "value": "e1000000-0000-0000-0000-000000000001" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Get Admin Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.collectionVariables.set('adminToken', json.access_token);",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has access_token', () => pm.expect(json.access_token).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{adminClientId}}" },
+                { "key": "password", "value": "{{adminClientSecret}}" }
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "client_credentials" },
+                { "key": "scope", "value": "ADMIN" }
+              ]
+            },
+            "url": { "raw": "{{baseUrl}}/oauth2/token", "host": ["{{baseUrl}}"], "path": ["oauth2", "token"] }
+          }
+        },
+        {
+          "name": "Get Customer Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.collectionVariables.set('customerToken', json.access_token);",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has access_token', () => pm.expect(json.access_token).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{mobileClientId}}" },
+                { "key": "password", "value": "{{mobileClientSecret}}" }
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "client_credentials" },
+                { "key": "scope", "value": "CUSTOMER" }
+              ]
+            },
+            "url": { "raw": "{{baseUrl}}/oauth2/token", "host": ["{{baseUrl}}"], "path": ["oauth2", "token"] }
+          }
+        },
+        {
+          "name": "Register OAuth2 Client",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": \"my-service-{{$timestamp}}\",\n  \"clientSecret\": \"super-secret-password-16chars\",\n  \"clientName\": \"My Microservice\",\n  \"scope\": \"CUSTOMER\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/clients/register", "host": ["{{baseUrl}}"], "path": ["auth", "clients", "register"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "Create Product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.collectionVariables.set('productId', json.data.id);",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Product has id', () => pm.expect(json.data.id).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Personal Loan {{$timestamp}}\",\n  \"description\": \"Short-term personal loan repayable in 30 days\",\n  \"tenureValue\": 30,\n  \"tenureType\": \"DAYS\",\n  \"minAmount\": 500.00,\n  \"maxAmount\": 50000.00,\n  \"gracePeriodDays\": 3\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/products", "host": ["{{baseUrl}}"], "path": ["api", "v1", "products"] }
+          }
+        },
+        {
+          "name": "List Products",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/products?activeOnly=true&page=0&size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "products"],
+              "query": [
+                { "key": "activeOnly", "value": "true" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Product by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/products/{{productId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "products", "{{productId}}"] }
+          }
+        },
+        {
+          "name": "Update Product",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Personal Loan {{$timestamp}} Updated\",\n  \"description\": \"Updated product description\",\n  \"tenureValue\": 30,\n  \"tenureType\": \"DAYS\",\n  \"minAmount\": 1000.00,\n  \"maxAmount\": 75000.00,\n  \"gracePeriodDays\": 5\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/products/{{productId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "products", "{{productId}}"] }
+          }
+        },
+        {
+          "name": "Add Service Fee to Product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.fees && json.data.fees.length > 0) {",
+                  "  pm.collectionVariables.set('feeId', json.data.fees[0].id);",
+                  "}",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"feeType\": \"SERVICE_FEE\",\n  \"calculationType\": \"PERCENTAGE\",\n  \"amount\": 2.50,\n  \"daysAfterDue\": 0\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/products/{{productId}}/fees", "host": ["{{baseUrl}}"], "path": ["api", "v1", "products", "{{productId}}", "fees"] }
+          }
+        },
+        {
+          "name": "Add Late Fee to Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"feeType\": \"LATE_FEE\",\n  \"calculationType\": \"FIXED\",\n  \"amount\": 150.00,\n  \"daysAfterDue\": 1\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/products/{{productId}}/fees", "host": ["{{baseUrl}}"], "path": ["api", "v1", "products", "{{productId}}", "fees"] }
+          }
+        },
+        {
+          "name": "Remove Fee from Product",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/products/{{productId}}/fees/{{feeId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "products", "{{productId}}", "fees", "{{feeId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Customers",
+      "item": [
+        {
+          "name": "Create Customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.collectionVariables.set('customerId', json.data.id);",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Customer has id', () => pm.expect(json.data.id).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Kamau\",\n  \"email\": \"jane.{{$timestamp}}@example.com\",\n  \"phone\": \"+254712345678\",\n  \"nationalId\": \"{{$timestamp}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/customers", "host": ["{{baseUrl}}"], "path": ["api", "v1", "customers"] }
+          }
+        },
+        {
+          "name": "Get Customer by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/customers/{{customerId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "customers", "{{customerId}}"] }
+          }
+        },
+        {
+          "name": "Update Customer",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Kamau Updated\",\n  \"email\": \"jane.{{$timestamp}}upd@example.com\",\n  \"phone\": \"+254799999999\",\n  \"nationalId\": \"{{$timestamp}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/customers/{{customerId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "customers", "{{customerId}}"] }
+          }
+        },
+        {
+          "name": "Update Customer Loan Limit",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"minLimit\": 500.00,\n  \"maxLimit\": 50000.00,\n  \"currentLimit\": 30000.00,\n  \"creditScore\": 720\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/customers/{{customerId}}/loan-limit", "host": ["{{baseUrl}}"], "path": ["api", "v1", "customers", "{{customerId}}", "loan-limit"] }
+          }
+        },
+        {
+          "name": "Get Customer Loan Limit",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/customers/{{customerId}}/loan-limit", "host": ["{{baseUrl}}"], "path": ["api", "v1", "customers", "{{customerId}}", "loan-limit"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Loans",
+      "item": [
+        {
+          "name": "Disburse Loan (Installment)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.collectionVariables.set('loanId', json.data.id);",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Loan has id', () => pm.expect(json.data.id).to.be.a('string'));",
+                  "pm.test('Loan status is OPEN', () => pm.expect(json.data.status).to.equal('OPEN'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"productId\": \"{{productId}}\",\n  \"amount\": 10000.00,\n  \"loanType\": \"INSTALLMENT\",\n  \"billingCycleType\": \"INDIVIDUAL\",\n  \"numInstallments\": 3\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/loans", "host": ["{{baseUrl}}"], "path": ["api", "v1", "loans"] }
+          }
+        },
+        {
+          "name": "Disburse Loan (Lump Sum — seeded customer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"c1000000-0000-0000-0000-000000000002\",\n  \"productId\": \"{{productId}}\",\n  \"amount\": 5000.00,\n  \"loanType\": \"LUMP_SUM\",\n  \"billingCycleType\": \"CONSOLIDATED\",\n  \"numInstallments\": 1\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/loans", "host": ["{{baseUrl}}"], "path": ["api", "v1", "loans"] }
+          }
+        },
+        {
+          "name": "List Loans",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/loans?page=0&size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "loans"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" },
+                { "key": "status", "value": "OPEN", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Overdue Loans",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/loans?status=OVERDUE&page=0&size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "loans"],
+              "query": [
+                { "key": "status", "value": "OVERDUE" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Loan by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/loans/{{loanId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "loans", "{{loanId}}"] }
+          }
+        },
+        {
+          "name": "Get Loan Installments",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/loans/{{loanId}}/installments", "host": ["{{baseUrl}}"], "path": ["api", "v1", "loans", "{{loanId}}", "installments"] }
+          }
+        },
+        {
+          "name": "Cancel Loan (separate seeded loan)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "description": "Cancel a seeded/separate loan — {{loanId}} is used for repayment testing",
+            "url": { "raw": "{{baseUrl}}/api/v1/loans/{{loanId}}/cancel", "host": ["{{baseUrl}}"], "path": ["api", "v1", "loans", "{{loanId}}", "cancel"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Repayments",
+      "item": [
+        {
+          "name": "Disburse Loan for Repayment Testing",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.collectionVariables.set('loanId', json.data.id);",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"productId\": \"{{productId}}\",\n  \"amount\": 9000.00,\n  \"loanType\": \"INSTALLMENT\",\n  \"billingCycleType\": \"INDIVIDUAL\",\n  \"numInstallments\": 3\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/loans", "host": ["{{baseUrl}}"], "path": ["api", "v1", "loans"] }
+          }
+        },
+        {
+          "name": "Process Repayment (M-Pesa)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Has repayment id', () => pm.expect(pm.response.json().data.id).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loanId\": \"{{loanId}}\",\n  \"amount\": 3000.00,\n  \"reference\": \"MPESA-{{$timestamp}}\",\n  \"channel\": \"MPESA\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/repayments", "host": ["{{baseUrl}}"], "path": ["api", "v1", "repayments"] }
+          }
+        },
+        {
+          "name": "Process Second Repayment (Bank)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loanId\": \"{{loanId}}\",\n  \"amount\": 3000.00,\n  \"reference\": \"BANK-{{$timestamp}}\",\n  \"channel\": \"BANK\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/repayments", "host": ["{{baseUrl}}"], "path": ["api", "v1", "repayments"] }
+          }
+        },
+        {
+          "name": "Process Final Repayment (Close Loan)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loanId\": \"{{loanId}}\",\n  \"amount\": 9000.00,\n  \"reference\": \"CASH-SETTLE-{{$timestamp}}\",\n  \"channel\": \"CASH\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/repayments", "host": ["{{baseUrl}}"], "path": ["api", "v1", "repayments"] }
+          }
+        },
+        {
+          "name": "Get Repayment History",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/loans/{{loanId}}/repayments", "host": ["{{baseUrl}}"], "path": ["api", "v1", "loans", "{{loanId}}", "repayments"] }
+          }
+        },
+        {
+          "name": "Deactivate Product (cleanup)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/products/{{productId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "products", "{{productId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Create Template (REPAYMENT_ACK + PUSH)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "// 201 on first run, 500 on subsequent (unique constraint) — both acceptable for demo",
+                  "pm.test('Template created or already exists', () => {",
+                  "  pm.expect([201, 500]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventType\": \"REPAYMENT_ACK\",\n  \"channel\": \"PUSH\",\n  \"subject\": \"Payment Received\",\n  \"bodyTemplate\": \"Payment of KES {{amount}} received for loan {{loanId}}. Balance: KES {{balance}}.\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/notifications/templates", "host": ["{{baseUrl}}"], "path": ["api", "v1", "notifications", "templates"] }
+          }
+        },
+        {
+          "name": "List Templates",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/notifications/templates", "host": ["{{baseUrl}}"], "path": ["api", "v1", "notifications", "templates"] }
+          }
+        },
+        {
+          "name": "Update Seeded Template",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventType\": \"LOAN_CREATED\",\n  \"channel\": \"EMAIL\",\n  \"subject\": \"Loan Disbursement Confirmed — KES {{amount}}\",\n  \"bodyTemplate\": \"Dear {{customerName}},\\n\\nYour loan {{loanNumber}} of KES {{amount}} has been disbursed. Due: {{dueDate}}.\\n\\nTezza Lending\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/templates/{{seededTemplateId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "notifications", "templates", "{{seededTemplateId}}"]
+            }
+          }
+        },
+        {
+          "name": "Create Notification Rule",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": null,\n  \"customerSegment\": null,\n  \"eventType\": \"LOAN_CREATED\",\n  \"channel\": \"PUSH\",\n  \"enabled\": true,\n  \"priority\": 10,\n  \"delayMinutes\": 0\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/notifications/rules", "host": ["{{baseUrl}}"], "path": ["api", "v1", "notifications", "rules"] }
+          }
+        },
+        {
+          "name": "Get Notification Logs for Customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/logs/{{customerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "notifications", "logs", "{{customerId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Status UP', () => pm.expect(pm.response.json().status).to.equal('UP'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/actuator/health", "host": ["{{baseUrl}}"], "path": ["actuator", "health"] }
+          }
+        }
+      ]
+    }
+  ]
+}

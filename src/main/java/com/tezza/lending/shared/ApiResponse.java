@@ -1,11 +1,9 @@
 package com.tezza.lending.shared;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import lombok.Getter;
 
 import java.util.UUID;
 
-@Getter
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ApiResponse<T> {
 
@@ -20,6 +18,11 @@ public class ApiResponse<T> {
         this.correlationId = correlationId;
         this.data = data;
     }
+
+    public int getStatus() { return status; }
+    public String getMessage() { return message; }
+    public String getCorrelationId() { return correlationId; }
+    public T getData() { return data; }
 
     public static <T> ApiResponse<T> success(T data) {
         return new ApiResponse<>(0, "Success", UUID.randomUUID().toString(), data);
