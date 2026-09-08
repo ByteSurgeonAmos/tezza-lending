@@ -280,6 +280,12 @@ All tables use **uppercase** naming. Migrations run automatically on startup via
 
 Seed data: `V99__seed_data.sql`
 
+A single combined SQL file (`schema.sql`) merging all migrations in order is included for reference or manual database setup:
+
+```bash
+psql -U tezza -d tezza_lending -f schema.sql
+```
+
 ## Running Tests
 
 ```bash
