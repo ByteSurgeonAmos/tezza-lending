@@ -3,6 +3,7 @@ package com.tezza.lending.loan.web;
 import com.tezza.lending.loan.api.LoanService;
 import com.tezza.lending.loan.api.dto.*;
 import com.tezza.lending.loan.internal.entity.enums.LoanStatus;
+import com.tezza.lending.loan.api.dto.LoanSummaryResponse;
 import com.tezza.lending.shared.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -53,6 +54,22 @@ public class LoanController {
     @Operation(summary = "Get loan by ID")
     public ResponseEntity<ApiResponse<LoanResponse>> get(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.success(loanService.getLoan(id)));
+    }
+
+    @GetMapping("/{id}/summary")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CUSTOMER')")
+    @Operation(summary = "Get loan summary — outstanding balance, total paid, overdue installment count")
+    public ResponseEntity<ApiResponse<LoanSummaryResponse>> summary(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.success(loanService.getLoanSummary(id)));
+    }
+
+    @GetMapping("/by-customer/{customerId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "List all loans for a customer")
+    public ResponseEntity<ApiResponse<Page<LoanResponse>>> byCustomer(
+            @PathVariable UUID customerId,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success(loanService.getCustomerLoans(customerId, pageable)));
     }
 
     @GetMapping("/{id}/installments")

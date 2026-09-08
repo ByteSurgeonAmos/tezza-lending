@@ -3,6 +3,7 @@ package com.tezza.lending.customer.internal.service;
 import com.tezza.lending.customer.api.CustomerService;
 import com.tezza.lending.customer.api.dto.CustomerRequest;
 import com.tezza.lending.customer.api.dto.CustomerResponse;
+import com.tezza.lending.customer.api.dto.CustomerStatusRequest;
 import com.tezza.lending.customer.api.dto.LoanLimitRequest;
 import com.tezza.lending.customer.api.dto.LoanLimitResponse;
 import com.tezza.lending.customer.internal.entity.Customer;
@@ -74,6 +75,13 @@ public class CustomerServiceImpl implements CustomerService {
         customer.setFirstName(request.getFirstName());
         customer.setLastName(request.getLastName());
         customer.setPhone(request.getPhone());
+        return CustomerResponse.from(customerRepository.save(customer));
+    }
+
+    @Override
+    public CustomerResponse updateStatus(UUID id, CustomerStatusRequest request) {
+        Customer customer = findCustomer(id);
+        customer.setStatus(request.getStatus());
         return CustomerResponse.from(customerRepository.save(customer));
     }
 

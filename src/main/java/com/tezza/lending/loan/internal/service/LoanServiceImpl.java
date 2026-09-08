@@ -150,6 +150,14 @@ public class LoanServiceImpl implements LoanService {
 
     @Override
     @Transactional(readOnly = true)
+    public LoanSummaryResponse getLoanSummary(UUID id) {
+        Loan loan = findLoan(id);
+        int overdueCount = installmentRepository.countByLoanIdAndStatus(id, com.tezza.lending.loan.internal.entity.enums.InstallmentStatus.OVERDUE);
+        return LoanSummaryResponse.from(loan, overdueCount);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Page<LoanResponse> listLoans(LoanStatus status, Pageable pageable) {
         if (status != null) {
             return loanRepository.findByStatus(status, pageable).map(LoanResponse::from);
