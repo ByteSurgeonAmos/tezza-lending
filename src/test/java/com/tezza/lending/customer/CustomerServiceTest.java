@@ -1,6 +1,7 @@
 package com.tezza.lending.customer;
 
 import com.tezza.lending.customer.api.dto.CustomerRequest;
+import com.tezza.lending.customer.api.dto.CustomerStatusRequest;
 import com.tezza.lending.customer.api.dto.LoanLimitRequest;
 import com.tezza.lending.customer.internal.entity.Customer;
 import com.tezza.lending.customer.internal.entity.CustomerLoanLimit;
@@ -15,8 +16,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -91,6 +96,66 @@ class CustomerServiceTest {
         assertThatThrownBy(() -> customerService.updateLoanLimit(id, req))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("blacklisted");
+    }
+
+    @Test
+    void listCustomers_noStatusFilter_returnsAllCustomers() {
+        Pageable pageable = PageRequest.of(0, 20);
+        Customer c = new Customer();
+        c.setStatus(CustomerStatus.ACTIVE);
+        when(customerRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(c)));
+
+        var result = customerService.listCustomers(null, pageable);
+
+        assertThat(result.getTotalElements()).isEqualTo(1);
+        verify(customerRepository).findAll(pageable);
+        verify(customerRepository, never()).findByStatus(any(), any());
+    }
+
+    @Test
+    void listCustomers_withStatusFilter_filtersCorrectly() {
+        Pageable pageable = PageRequest.of(0, 20);
+        Customer c = new Customer();
+        c.setStatus(CustomerStatus.BLACKLISTED);
+        when(customerRepository.findByStatus(CustomerStatus.BLACKLISTED, pageable))
+                .thenReturn(new PageImpl<>(List.of(c)));
+
+        var result = customerService.listCustomers(CustomerStatus.BLACKLISTED, pageable);
+
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getContent().get(0).getStatus()).isEqualTo(CustomerStatus.BLACKLISTED);
+        verify(customerRepository).findByStatus(CustomerStatus.BLACKLISTED, pageable);
+        verify(customerRepository, never()).findAll(pageable);
+    }
+
+    @Test
+    void updateStatus_setsNewStatus() {
+        UUID id = UUID.randomUUID();
+        Customer customer = new Customer();
+        customer.setId(id);
+        customer.setStatus(CustomerStatus.ACTIVE);
+        when(customerRepository.findById(id)).thenReturn(Optional.of(customer));
+        when(customerRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        CustomerStatusRequest req = new CustomerStatusRequest();
+        req.setStatus(CustomerStatus.BLACKLISTED);
+
+        var result = customerService.updateStatus(id, req);
+
+        assertThat(result.getStatus()).isEqualTo(CustomerStatus.BLACKLISTED);
+        verify(customerRepository).save(customer);
+    }
+
+    @Test
+    void updateStatus_customerNotFound_throwsResourceNotFoundException() {
+        UUID id = UUID.randomUUID();
+        when(customerRepository.findById(id)).thenReturn(Optional.empty());
+
+        CustomerStatusRequest req = new CustomerStatusRequest();
+        req.setStatus(CustomerStatus.SUSPENDED);
+
+        assertThatThrownBy(() -> customerService.updateStatus(id, req))
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 
     @Test

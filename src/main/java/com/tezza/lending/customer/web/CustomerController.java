@@ -68,7 +68,7 @@ public class CustomerController {
 
     @PatchMapping("/{id}/status")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Update customer status (ACTIVE, BLACKLISTED, INACTIVE)")
+    @Operation(summary = "Update customer status (ACTIVE, SUSPENDED, BLACKLISTED)")
     public ResponseEntity<ApiResponse<CustomerResponse>> updateStatus(
             @PathVariable UUID id, @Valid @RequestBody CustomerStatusRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Customer status updated", customerService.updateStatus(id, request)));
