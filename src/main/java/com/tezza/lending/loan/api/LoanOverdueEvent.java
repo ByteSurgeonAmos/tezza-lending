@@ -1,4 +1,4 @@
-package com.tezza.lending.loan.api.event;
+package com.tezza.lending.loan.api;
 
 import java.math.BigDecimal;
 import java.util.UUID;

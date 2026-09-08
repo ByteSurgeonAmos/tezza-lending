@@ -1,16 +1,14 @@
 package com.tezza.lending.repayment.internal.service;
 
-import com.tezza.lending.loan.api.event.RepaymentReceivedEvent;
-import com.tezza.lending.loan.internal.entity.Loan;
-import com.tezza.lending.loan.internal.entity.enums.LoanStatus;
-import com.tezza.lending.loan.internal.repository.LoanRepository;
+import com.tezza.lending.loan.api.LoanService;
+import com.tezza.lending.loan.api.dto.LoanResponse;
+import com.tezza.lending.loan.api.RepaymentReceivedEvent;
 import com.tezza.lending.repayment.api.RepaymentService;
 import com.tezza.lending.repayment.api.dto.RepaymentRequest;
 import com.tezza.lending.repayment.api.dto.RepaymentResponse;
 import com.tezza.lending.repayment.internal.entity.Repayment;
 import com.tezza.lending.repayment.internal.repository.RepaymentRepository;
 import com.tezza.lending.shared.exception.BusinessException;
-import com.tezza.lending.shared.exception.ResourceNotFoundException;
 import jakarta.persistence.EntityManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,16 +27,16 @@ public class RepaymentServiceImpl implements RepaymentService {
 
     private static final Logger log = LoggerFactory.getLogger(RepaymentServiceImpl.class);
     private final RepaymentRepository repaymentRepository;
-    private final LoanRepository loanRepository;
+    private final LoanService loanService;
     private final EntityManager entityManager;
     private final ApplicationEventPublisher eventPublisher;
 
     public RepaymentServiceImpl(RepaymentRepository repaymentRepository,
-                                LoanRepository loanRepository,
+                                LoanService loanService,
                                 EntityManager entityManager,
                                 ApplicationEventPublisher eventPublisher) {
         this.repaymentRepository = repaymentRepository;
-        this.loanRepository = loanRepository;
+        this.loanService = loanService;
         this.entityManager = entityManager;
         this.eventPublisher = eventPublisher;
     }
@@ -49,20 +47,13 @@ public class RepaymentServiceImpl implements RepaymentService {
             throw new BusinessException("Duplicate repayment reference: " + request.getReference());
         }
 
-        Loan loan = loanRepository.findById(request.getLoanId())
-                .orElseThrow(() -> new ResourceNotFoundException("Loan", request.getLoanId().toString()));
-
-        if (loan.getStatus() != LoanStatus.OPEN && loan.getStatus() != LoanStatus.OVERDUE) {
-            throw new BusinessException("Cannot process repayment for loan in status: " + loan.getStatus());
-        }
+        // VALIDATES LOAN IS OPEN/OVERDUE — throws BusinessException otherwise
+        LoanResponse loan = loanService.getRepayableLoan(request.getLoanId());
 
         BigDecimal paymentAmount = request.getAmount();
+        BigDecimal newBalance = loan.getOutstandingBalance().subtract(paymentAmount).max(BigDecimal.ZERO);
 
-        // DEDUCT BALANCE: reduce outstanding balance (cap at zero)
-        BigDecimal newBalance = loan.getOutstandingBalance().subtract(paymentAmount);
-        if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
-            newBalance = BigDecimal.ZERO;
-        }
+        // DEDUCT BALANCE — update outstanding balance directly
         entityManager.createNativeQuery(
                 "UPDATE LOANS SET OUTSTANDING_BALANCE = :balance, UPDATED_AT = NOW() WHERE ID = :id")
                 .setParameter("balance", newBalance)
@@ -80,13 +71,9 @@ public class RepaymentServiceImpl implements RepaymentService {
                 .setParameter("loanId", loan.getId())
                 .executeUpdate();
 
-        // RELOAD loan to get updated state
-        entityManager.refresh(loan);
-
         log.info("Repayment processed for loan {}: amount={}, new balance={}",
-                loan.getLoanNumber(), paymentAmount, loan.getOutstandingBalance());
+                loan.getLoanNumber(), paymentAmount, newBalance);
 
-        // SAVE repayment record
         Repayment repayment = new Repayment();
         repayment.setLoanId(request.getLoanId());
         repayment.setAmount(paymentAmount);
@@ -97,7 +84,7 @@ public class RepaymentServiceImpl implements RepaymentService {
 
         eventPublisher.publishEvent(new RepaymentReceivedEvent(
                 loan.getId(), loan.getCustomerId(),
-                loan.getLoanNumber(), paymentAmount, loan.getOutstandingBalance()));
+                loan.getLoanNumber(), paymentAmount, newBalance));
 
         return RepaymentResponse.from(repayment);
     }

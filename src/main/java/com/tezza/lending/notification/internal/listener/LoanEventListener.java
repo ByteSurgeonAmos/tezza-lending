@@ -1,9 +1,9 @@
 package com.tezza.lending.notification.internal.listener;
 
-import com.tezza.lending.loan.api.event.DueDateReminderEvent;
-import com.tezza.lending.loan.api.event.LoanCreatedEvent;
-import com.tezza.lending.loan.api.event.LoanOverdueEvent;
-import com.tezza.lending.loan.api.event.RepaymentReceivedEvent;
+import com.tezza.lending.loan.api.DueDateReminderEvent;
+import com.tezza.lending.loan.api.LoanCreatedEvent;
+import com.tezza.lending.loan.api.LoanOverdueEvent;
+import com.tezza.lending.loan.api.RepaymentReceivedEvent;
 import com.tezza.lending.notification.internal.kafka.LoanEventMessage;
 import com.tezza.lending.notification.internal.kafka.LoanEventProducer;
 import org.slf4j.Logger;

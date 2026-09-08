@@ -18,6 +18,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -112,6 +113,23 @@ public class CustomerServiceImpl implements CustomerService {
         limit.setCreditScore(request.getCreditScore());
         limit.setLastReviewedAt(LocalDateTime.now());
         return LoanLimitResponse.from(loanLimitRepository.save(limit));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public void assertCustomerExists(UUID id) {
+        if (!customerRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Customer", id.toString());
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BigDecimal getCustomerCurrentLimit(UUID customerId) {
+        return loanLimitRepository.findByCustomerId(customerId)
+                .map(limit -> limit.getCurrentLimit())
+                .orElseThrow(() -> new com.tezza.lending.shared.exception.BusinessException(
+                        "No loan limit configured for customer"));
     }
 
     private Customer findCustomer(UUID id) {

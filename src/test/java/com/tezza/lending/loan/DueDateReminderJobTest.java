@@ -1,6 +1,6 @@
 package com.tezza.lending.loan;
 
-import com.tezza.lending.loan.api.event.DueDateReminderEvent;
+import com.tezza.lending.loan.api.DueDateReminderEvent;
 import com.tezza.lending.loan.internal.entity.Loan;
 import com.tezza.lending.loan.internal.entity.enums.LoanStatus;
 import com.tezza.lending.loan.internal.repository.LoanRepository;

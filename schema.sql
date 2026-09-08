@@ -1,6 +1,6 @@
 -- =============================================================
 -- Tezza Lending Platform — Full Database Schema
--- Combines all Flyway migrations in order: V1 → V7 → V100 → V99
+-- Combines all Flyway migrations in order: V1 → V7 → V8 → V99
 -- Run against a fresh PostgreSQL database:
 --   psql -U tezza -d tezza_lending -f schema.sql
 -- =============================================================
@@ -423,7 +423,7 @@ $$;
 
 
 -- -------------------------------------------------------------
--- V100: SPRING MODULITH EVENT PUBLICATION
+-- V8: SPRING MODULITH EVENT PUBLICATION
 -- -------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS EVENT_PUBLICATION (
