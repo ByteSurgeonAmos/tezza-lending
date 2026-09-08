@@ -5,6 +5,9 @@ import com.tezza.lending.loan.internal.entity.enums.LoanStatus;
 import com.tezza.lending.loan.internal.repository.LoanRepository;
 import com.tezza.lending.loan.internal.scheduler.DailyFeeSweepJob;
 import com.tezza.lending.loan.internal.service.FeeCalculatorService;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Query;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -16,8 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -25,10 +27,19 @@ class DailyFeeSweepJobTest {
 
     @Mock LoanRepository loanRepository;
     @Mock FeeCalculatorService feeCalculatorService;
+    @Mock EntityManager entityManager;
     @InjectMocks DailyFeeSweepJob dailyFeeSweepJob;
 
+    @BeforeEach
+    void setUp() {
+        Query mockQuery = mock(Query.class);
+        lenient().when(mockQuery.setParameter(anyString(), any())).thenReturn(mockQuery);
+        lenient().when(mockQuery.executeUpdate()).thenReturn(1);
+        lenient().when(entityManager.createNativeQuery(anyString())).thenReturn(mockQuery);
+    }
+
     @Test
-    void runDailyFeeSweep_openLoanWithDailyFee_balanceIncreases() {
+    void runDailyFeeSweep_openLoanWithDailyFee_callsDailyFeeSP() {
         Loan loan = new Loan();
         loan.setId(UUID.randomUUID());
         loan.setProductId(UUID.randomUUID());
@@ -38,16 +49,14 @@ class DailyFeeSweepJobTest {
 
         when(loanRepository.findLoansWithDailyFee()).thenReturn(List.of(loan));
         when(feeCalculatorService.calculateDailyFee(any(), any())).thenReturn(BigDecimal.valueOf(50));
-        when(loanRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         dailyFeeSweepJob.runDailyFeeSweep();
 
-        assertThat(loan.getOutstandingBalance()).isEqualByComparingTo("50050.00");
-        verify(loanRepository).save(loan);
+        verify(entityManager).createNativeQuery(contains("proc_apply_daily_fee"));
     }
 
     @Test
-    void runDailyFeeSweep_zeroDailyFee_loanNotSaved() {
+    void runDailyFeeSweep_zeroDailyFee_noSpCall() {
         Loan loan = new Loan();
         loan.setId(UUID.randomUUID());
         loan.setProductId(UUID.randomUUID());
@@ -60,6 +69,6 @@ class DailyFeeSweepJobTest {
 
         dailyFeeSweepJob.runDailyFeeSweep();
 
-        verify(loanRepository, never()).save(any());
+        verify(entityManager, never()).createNativeQuery(contains("proc_apply_daily_fee"));
     }
 }
