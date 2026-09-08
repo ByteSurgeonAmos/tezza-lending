@@ -12,6 +12,8 @@ import com.tezza.lending.customer.internal.repository.CustomerLoanLimitRepositor
 import com.tezza.lending.customer.internal.repository.CustomerRepository;
 import com.tezza.lending.shared.exception.BusinessException;
 import com.tezza.lending.shared.exception.ResourceNotFoundException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,6 +49,15 @@ public class CustomerServiceImpl implements CustomerService {
         customer.setNationalId(request.getNationalId());
         customer.setStatus(CustomerStatus.ACTIVE);
         return CustomerResponse.from(customerRepository.save(customer));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<CustomerResponse> listCustomers(CustomerStatus status, Pageable pageable) {
+        if (status != null) {
+            return customerRepository.findByStatus(status, pageable).map(CustomerResponse::from);
+        }
+        return customerRepository.findAll(pageable).map(CustomerResponse::from);
     }
 
     @Override
