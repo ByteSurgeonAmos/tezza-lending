@@ -63,7 +63,7 @@ public class AuthController {
 
         if (clientRepository.findByClientId(request.clientId()) != null) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(ApiResponse.error("Client ID already registered: " + request.clientId()));
+                    .body(ApiResponse.error("Client registration failed"));
         }
 
         RegisteredClient client = RegisteredClient.withId(UUID.randomUUID().toString())

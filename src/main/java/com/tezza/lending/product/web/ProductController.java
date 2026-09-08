@@ -32,7 +32,7 @@ public class ProductController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Create a loan product")
     public ResponseEntity<ApiResponse<ProductResponse>> create(@Valid @RequestBody ProductRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -54,7 +54,7 @@ public class ProductController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Update a loan product")
     public ResponseEntity<ApiResponse<ProductResponse>> update(
             @PathVariable UUID id, @Valid @RequestBody ProductRequest request) {
@@ -62,7 +62,7 @@ public class ProductController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Deactivate a loan product")
     public ResponseEntity<ApiResponse<Void>> deactivate(@PathVariable UUID id) {
         productService.deactivateProduct(id);
@@ -70,7 +70,7 @@ public class ProductController {
     }
 
     @PostMapping("/{id}/fees")
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Add a fee to a product")
     public ResponseEntity<ApiResponse<ProductResponse>> addFee(
             @PathVariable UUID id, @Valid @RequestBody FeeRequest request) {
@@ -79,7 +79,7 @@ public class ProductController {
     }
 
     @DeleteMapping("/{id}/fees/{feeId}")
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Remove a fee from a product")
     public ResponseEntity<ApiResponse<Void>> removeFee(@PathVariable UUID id, @PathVariable UUID feeId) {
         productService.removeFee(id, feeId);

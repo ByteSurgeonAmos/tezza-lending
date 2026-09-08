@@ -30,7 +30,7 @@ public class CustomerController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Create a customer")
     public ResponseEntity<ApiResponse<CustomerResponse>> create(@Valid @RequestBody CustomerRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -38,14 +38,14 @@ public class CustomerController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Get customer by ID")
     public ResponseEntity<ApiResponse<CustomerResponse>> get(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.success(customerService.getCustomer(id)));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Update customer details")
     public ResponseEntity<ApiResponse<CustomerResponse>> update(
             @PathVariable UUID id, @Valid @RequestBody CustomerRequest request) {
@@ -53,14 +53,14 @@ public class CustomerController {
     }
 
     @GetMapping("/{id}/loan-limit")
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Get customer loan limit")
     public ResponseEntity<ApiResponse<LoanLimitResponse>> getLoanLimit(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.success(customerService.getLoanLimit(id)));
     }
 
     @PutMapping("/{id}/loan-limit")
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Update customer loan limit")
     public ResponseEntity<ApiResponse<LoanLimitResponse>> updateLoanLimit(
             @PathVariable UUID id, @Valid @RequestBody LoanLimitRequest request) {

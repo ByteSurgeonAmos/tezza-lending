@@ -5,6 +5,9 @@ import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -35,10 +38,25 @@ import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Duration;
+import java.util.Base64;
 import java.util.UUID;
 
 @Configuration
 public class AuthorizationServerConfig {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthorizationServerConfig.class);
+
+    @Value("${tezza.auth.admin-client-secret}")
+    private String adminClientSecret;
+
+    @Value("${tezza.auth.mobile-client-secret}")
+    private String mobileClientSecret;
+
+    @Value("${tezza.auth.jwt-private-key:}")
+    private String jwtPrivateKeyPem;
+
+    @Value("${tezza.issuer-uri:${TEZZA_ISSUER_URI:http://localhost:8080}}")
+    private String issuerUri;
 
     @Bean
     @Order(1)
@@ -58,11 +76,10 @@ public class AuthorizationServerConfig {
         JdbcRegisteredClientRepository repository = new JdbcRegisteredClientRepository(
                 new org.springframework.jdbc.core.JdbcTemplate(dataSource));
 
-        // SEED DEFAULT CLIENTS IF NOT ALREADY REGISTERED
         if (repository.findByClientId("tezza-admin-client") == null) {
             RegisteredClient adminClient = RegisteredClient.withId(UUID.randomUUID().toString())
                     .clientId("tezza-admin-client")
-                    .clientSecret(encoder.encode("admin-secret"))
+                    .clientSecret(encoder.encode(adminClientSecret))
                     .clientName("Tezza Admin Portal")
                     .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
                     .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
@@ -78,7 +95,7 @@ public class AuthorizationServerConfig {
         if (repository.findByClientId("tezza-mobile-client") == null) {
             RegisteredClient mobileClient = RegisteredClient.withId(UUID.randomUUID().toString())
                     .clientId("tezza-mobile-client")
-                    .clientSecret(encoder.encode("mobile-secret"))
+                    .clientSecret(encoder.encode(mobileClientSecret))
                     .clientName("Tezza Mobile App")
                     .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
                     .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
@@ -109,11 +126,14 @@ public class AuthorizationServerConfig {
         };
     }
 
+    /**
+     * RSA signing key for JWT tokens.
+     * In production: set TEZZA_JWT_PRIVATE_KEY to a stable base64-encoded PKCS8 private key.
+     * Without it, a new key is generated each restart — valid tokens are invalidated on restart.
+     */
     @Bean
     public JWKSource<SecurityContext> jwkSource() throws Exception {
-        KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
-        generator.initialize(2048);
-        KeyPair keyPair = generator.generateKeyPair();
+        KeyPair keyPair = loadOrGenerateKeyPair();
         RSAPublicKey publicKey = (RSAPublicKey) keyPair.getPublic();
         RSAPrivateKey privateKey = (RSAPrivateKey) keyPair.getPrivate();
         RSAKey rsaKey = new RSAKey.Builder(publicKey)
@@ -123,10 +143,31 @@ public class AuthorizationServerConfig {
         return new ImmutableJWKSet<>(new JWKSet(rsaKey));
     }
 
+    private KeyPair loadOrGenerateKeyPair() throws Exception {
+        if (jwtPrivateKeyPem != null && !jwtPrivateKeyPem.isBlank()) {
+            // LOAD FROM CONFIGURED PRIVATE KEY (base64-encoded PKCS8 DER)
+            byte[] decoded = Base64.getDecoder().decode(jwtPrivateKeyPem.replaceAll("\\s+", ""));
+            java.security.spec.PKCS8EncodedKeySpec spec = new java.security.spec.PKCS8EncodedKeySpec(decoded);
+            java.security.KeyFactory kf = java.security.KeyFactory.getInstance("RSA");
+            RSAPrivateKey privateKey = (RSAPrivateKey) kf.generatePrivate(spec);
+            // DERIVE PUBLIC KEY FROM PRIVATE KEY
+            java.security.interfaces.RSAPrivateCrtKey crtKey = (java.security.interfaces.RSAPrivateCrtKey) privateKey;
+            java.security.spec.RSAPublicKeySpec pubSpec = new java.security.spec.RSAPublicKeySpec(
+                    crtKey.getModulus(), crtKey.getPublicExponent());
+            RSAPublicKey publicKey = (RSAPublicKey) kf.generatePublic(pubSpec);
+            return new KeyPair(publicKey, privateKey);
+        }
+        log.warn("TEZZA_JWT_PRIVATE_KEY not set — generating ephemeral RSA key. " +
+                 "Tokens will be invalidated on restart. Set this env var in production.");
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+        generator.initialize(2048);
+        return generator.generateKeyPair();
+    }
+
     @Bean
     public AuthorizationServerSettings authorizationServerSettings() {
         return AuthorizationServerSettings.builder()
-                .issuer("http://localhost:8080")
+                .issuer(issuerUri)
                 .build();
     }
 
