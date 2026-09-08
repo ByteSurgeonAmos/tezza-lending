@@ -25,4 +25,8 @@ public interface LoanRepository extends JpaRepository<Loan, UUID> {
 
     @Query("SELECT l FROM Loan l WHERE l.dueDate = :targetDate AND l.status = 'OPEN'")
     List<Loan> findLoansDueOn(@Param("targetDate") LocalDate targetDate);
+
+    // RETURNS ACTIVE LOANS ELIGIBLE FOR DAILY FEE ACCRUAL
+    @Query("SELECT l FROM Loan l WHERE l.status IN ('OPEN', 'OVERDUE')")
+    List<Loan> findLoansWithDailyFee();
 }
