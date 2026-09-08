@@ -15,6 +15,10 @@ import java.util.UUID;
 public interface LoanRepository extends JpaRepository<Loan, UUID> {
     Page<Loan> findByCustomerId(UUID customerId, Pageable pageable);
     Page<Loan> findByStatus(LoanStatus status, Pageable pageable);
+    Page<Loan> findByStatusAndCustomerId(LoanStatus status, UUID customerId, Pageable pageable);
+
+    @Query(value = "SELECT COALESCE(SUM(amount), 0) FROM REPAYMENTS WHERE loan_id = :loanId", nativeQuery = true)
+    java.math.BigDecimal sumRepaymentAmounts(@Param("loanId") UUID loanId);
 
     @Query("SELECT l FROM Loan l WHERE l.dueDate < :today AND l.status = 'OPEN'")
     List<Loan> findOverdueLoans(@Param("today") LocalDate today);

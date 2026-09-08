@@ -18,14 +18,14 @@ public class LoanSummaryResponse {
     private LocalDate dueDate;
     private int overdueInstallmentCount;
 
-    public static LoanSummaryResponse from(Loan loan, int overdueInstallmentCount) {
+    public static LoanSummaryResponse from(Loan loan, int overdueInstallmentCount, BigDecimal totalPaid) {
         LoanSummaryResponse r = new LoanSummaryResponse();
         r.loanId = loan.getId();
         r.loanNumber = loan.getLoanNumber();
         r.status = loan.getStatus();
         r.principalAmount = loan.getPrincipalAmount();
         r.outstandingBalance = loan.getOutstandingBalance();
-        r.totalPaid = loan.getPrincipalAmount().subtract(loan.getOutstandingBalance()).max(BigDecimal.ZERO);
+        r.totalPaid = totalPaid != null ? totalPaid : BigDecimal.ZERO;
         r.dueDate = loan.getDueDate();
         r.overdueInstallmentCount = overdueInstallmentCount;
         return r;

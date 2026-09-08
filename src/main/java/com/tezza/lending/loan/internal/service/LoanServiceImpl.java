@@ -1,14 +1,13 @@
 package com.tezza.lending.loan.internal.service;
 
-import com.tezza.lending.customer.internal.entity.CustomerLoanLimit;
-import com.tezza.lending.customer.internal.repository.CustomerLoanLimitRepository;
-import com.tezza.lending.customer.internal.repository.CustomerRepository;
+import com.tezza.lending.customer.api.CustomerService;
 import com.tezza.lending.loan.api.LoanService;
 import com.tezza.lending.loan.api.dto.*;
-import com.tezza.lending.loan.api.event.LoanCreatedEvent;
+import com.tezza.lending.loan.api.LoanCreatedEvent;
 import com.tezza.lending.loan.internal.entity.Loan;
 import com.tezza.lending.loan.internal.entity.LoanInstallment;
 import com.tezza.lending.loan.internal.entity.enums.BillingCycleType;
+import com.tezza.lending.loan.internal.entity.enums.InstallmentStatus;
 import com.tezza.lending.loan.internal.entity.enums.LoanStatus;
 import com.tezza.lending.loan.internal.entity.enums.LoanType;
 import com.tezza.lending.loan.internal.repository.LoanInstallmentRepository;
@@ -42,8 +41,7 @@ public class LoanServiceImpl implements LoanService {
     private final LoanRepository loanRepository;
     private final LoanInstallmentRepository installmentRepository;
     private final LoanProductRepository productRepository;
-    private final CustomerRepository customerRepository;
-    private final CustomerLoanLimitRepository loanLimitRepository;
+    private final CustomerService customerService;
     private final FeeCalculatorService feeCalculatorService;
     private final InstallmentGeneratorService installmentGeneratorService;
     private final ApplicationEventPublisher eventPublisher;
@@ -52,16 +50,14 @@ public class LoanServiceImpl implements LoanService {
             LoanRepository loanRepository,
             LoanInstallmentRepository installmentRepository,
             LoanProductRepository productRepository,
-            CustomerRepository customerRepository,
-            CustomerLoanLimitRepository loanLimitRepository,
+            CustomerService customerService,
             FeeCalculatorService feeCalculatorService,
             InstallmentGeneratorService installmentGeneratorService,
             ApplicationEventPublisher eventPublisher) {
         this.loanRepository = loanRepository;
         this.installmentRepository = installmentRepository;
         this.productRepository = productRepository;
-        this.customerRepository = customerRepository;
-        this.loanLimitRepository = loanLimitRepository;
+        this.customerService = customerService;
         this.feeCalculatorService = feeCalculatorService;
         this.installmentGeneratorService = installmentGeneratorService;
         this.eventPublisher = eventPublisher;
@@ -69,8 +65,7 @@ public class LoanServiceImpl implements LoanService {
 
     @Override
     public LoanResponse disburseLoan(LoanRequest request) {
-        customerRepository.findById(request.getCustomerId())
-                .orElseThrow(() -> new ResourceNotFoundException("Customer", request.getCustomerId().toString()));
+        customerService.assertCustomerExists(request.getCustomerId());
 
         LoanProduct product = productRepository.findById(request.getProductId())
                 .orElseThrow(() -> new ResourceNotFoundException("LoanProduct", request.getProductId().toString()));
@@ -84,10 +79,9 @@ public class LoanServiceImpl implements LoanService {
                 "Loan amount must be between %s and %s", product.getMinAmount(), product.getMaxAmount()));
         }
 
-        CustomerLoanLimit limit = loanLimitRepository.findByCustomerId(request.getCustomerId())
-                .orElseThrow(() -> new BusinessException("No loan limit configured for customer"));
-        if (request.getAmount().compareTo(limit.getCurrentLimit()) > 0) {
-            throw new BusinessException("Requested amount exceeds customer loan limit of " + limit.getCurrentLimit());
+        BigDecimal currentLimit = customerService.getCustomerCurrentLimit(request.getCustomerId());
+        if (request.getAmount().compareTo(currentLimit) > 0) {
+            throw new BusinessException("Requested amount exceeds customer loan limit of " + currentLimit);
         }
 
         if (request.getLoanType() == LoanType.INSTALLMENT &&
@@ -152,15 +146,22 @@ public class LoanServiceImpl implements LoanService {
     @Transactional(readOnly = true)
     public LoanSummaryResponse getLoanSummary(UUID id) {
         Loan loan = findLoan(id);
-        int overdueCount = installmentRepository.countByLoanIdAndStatus(id, com.tezza.lending.loan.internal.entity.enums.InstallmentStatus.OVERDUE);
-        return LoanSummaryResponse.from(loan, overdueCount);
+        int overdueCount = installmentRepository.countByLoanIdAndStatus(id, InstallmentStatus.OVERDUE);
+        BigDecimal totalRepaid = loanRepository.sumRepaymentAmounts(id);
+        return LoanSummaryResponse.from(loan, overdueCount, totalRepaid);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Page<LoanResponse> listLoans(LoanStatus status, Pageable pageable) {
+    public Page<LoanResponse> listLoans(LoanStatus status, UUID customerId, Pageable pageable) {
+        if (status != null && customerId != null) {
+            return loanRepository.findByStatusAndCustomerId(status, customerId, pageable).map(LoanResponse::from);
+        }
         if (status != null) {
             return loanRepository.findByStatus(status, pageable).map(LoanResponse::from);
+        }
+        if (customerId != null) {
+            return loanRepository.findByCustomerId(customerId, pageable).map(LoanResponse::from);
         }
         return loanRepository.findAll(pageable).map(LoanResponse::from);
     }
@@ -176,6 +177,16 @@ public class LoanServiceImpl implements LoanService {
     public List<InstallmentResponse> getInstallments(UUID loanId) {
         return installmentRepository.findByLoanIdOrderByInstallmentNumberAsc(loanId)
                 .stream().map(InstallmentResponse::from).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public LoanResponse getRepayableLoan(UUID loanId) {
+        Loan loan = findLoan(loanId);
+        if (loan.getStatus() != LoanStatus.OPEN && loan.getStatus() != LoanStatus.OVERDUE) {
+            throw new BusinessException("Cannot process repayment for loan in status: " + loan.getStatus());
+        }
+        return LoanResponse.from(loan);
     }
 
     @Override

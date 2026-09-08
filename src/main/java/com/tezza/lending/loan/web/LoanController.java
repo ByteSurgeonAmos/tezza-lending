@@ -42,11 +42,12 @@ public class LoanController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "List loans with optional status filter")
+    @Operation(summary = "List loans — filter by status and/or customerId")
     public ResponseEntity<ApiResponse<Page<LoanResponse>>> list(
             @RequestParam(required = false) LoanStatus status,
+            @RequestParam(required = false) UUID customerId,
             @PageableDefault(size = 20) Pageable pageable) {
-        return ResponseEntity.ok(ApiResponse.success(loanService.listLoans(status, pageable)));
+        return ResponseEntity.ok(ApiResponse.success(loanService.listLoans(status, customerId, pageable)));
     }
 
     @GetMapping("/{id}")
@@ -61,15 +62,6 @@ public class LoanController {
     @Operation(summary = "Get loan summary — outstanding balance, total paid, overdue installment count")
     public ResponseEntity<ApiResponse<LoanSummaryResponse>> summary(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.success(loanService.getLoanSummary(id)));
-    }
-
-    @GetMapping("/by-customer/{customerId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "List all loans for a customer")
-    public ResponseEntity<ApiResponse<Page<LoanResponse>>> byCustomer(
-            @PathVariable UUID customerId,
-            @PageableDefault(size = 20) Pageable pageable) {
-        return ResponseEntity.ok(ApiResponse.success(loanService.getCustomerLoans(customerId, pageable)));
     }
 
     @GetMapping("/{id}/installments")

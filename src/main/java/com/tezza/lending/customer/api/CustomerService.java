@@ -9,6 +9,7 @@ import com.tezza.lending.customer.internal.entity.enums.CustomerStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 public interface CustomerService {
@@ -19,4 +20,8 @@ public interface CustomerService {
     CustomerResponse updateStatus(UUID id, CustomerStatusRequest request);
     LoanLimitResponse getLoanLimit(UUID customerId);
     LoanLimitResponse updateLoanLimit(UUID customerId, LoanLimitRequest request);
+
+    // USED BY LOAN MODULE — keeps loan off customer.internal repos
+    void assertCustomerExists(UUID id);
+    BigDecimal getCustomerCurrentLimit(UUID customerId);
 }

@@ -41,29 +41,16 @@ public class LoanResponse {
     }
 
     public UUID getId() { return id; }
-    public void setId(UUID id) { this.id = id; }
     public String getLoanNumber() { return loanNumber; }
-    public void setLoanNumber(String loanNumber) { this.loanNumber = loanNumber; }
     public UUID getCustomerId() { return customerId; }
-    public void setCustomerId(UUID customerId) { this.customerId = customerId; }
     public UUID getProductId() { return productId; }
-    public void setProductId(UUID productId) { this.productId = productId; }
     public BigDecimal getPrincipalAmount() { return principalAmount; }
-    public void setPrincipalAmount(BigDecimal principalAmount) { this.principalAmount = principalAmount; }
     public BigDecimal getOutstandingBalance() { return outstandingBalance; }
-    public void setOutstandingBalance(BigDecimal outstandingBalance) { this.outstandingBalance = outstandingBalance; }
     public LoanStatus getStatus() { return status; }
-    public void setStatus(LoanStatus status) { this.status = status; }
     public LoanType getLoanType() { return loanType; }
-    public void setLoanType(LoanType loanType) { this.loanType = loanType; }
     public BillingCycleType getBillingCycleType() { return billingCycleType; }
-    public void setBillingCycleType(BillingCycleType billingCycleType) { this.billingCycleType = billingCycleType; }
     public LocalDate getDueDate() { return dueDate; }
-    public void setDueDate(LocalDate dueDate) { this.dueDate = dueDate; }
     public LocalDate getConsolidatedDueDate() { return consolidatedDueDate; }
-    public void setConsolidatedDueDate(LocalDate consolidatedDueDate) { this.consolidatedDueDate = consolidatedDueDate; }
     public LocalDateTime getDisbursedAt() { return disbursedAt; }
-    public void setDisbursedAt(LocalDateTime disbursedAt) { this.disbursedAt = disbursedAt; }
     public LocalDateTime getClosedAt() { return closedAt; }
-    public void setClosedAt(LocalDateTime closedAt) { this.closedAt = closedAt; }
 }

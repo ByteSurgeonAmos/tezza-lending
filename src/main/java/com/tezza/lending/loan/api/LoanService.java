@@ -12,9 +12,12 @@ public interface LoanService {
     LoanResponse disburseLoan(LoanRequest request);
     LoanResponse getLoan(UUID id);
     LoanSummaryResponse getLoanSummary(UUID id);
-    Page<LoanResponse> listLoans(LoanStatus status, Pageable pageable);
+    Page<LoanResponse> listLoans(LoanStatus status, UUID customerId, Pageable pageable);
     Page<LoanResponse> getCustomerLoans(UUID customerId, Pageable pageable);
     List<InstallmentResponse> getInstallments(UUID loanId);
     LoanResponse cancelLoan(UUID id);
     LoanResponse writeOffLoan(UUID id);
+
+    // USED BY REPAYMENT MODULE — validates loan is repayable without exposing internal entity
+    LoanResponse getRepayableLoan(UUID loanId);
 }

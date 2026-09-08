@@ -1,9 +1,10 @@
 package com.tezza.lending.repayment;
 
-import com.tezza.lending.loan.api.event.RepaymentReceivedEvent;
+import com.tezza.lending.loan.api.LoanService;
+import com.tezza.lending.loan.api.RepaymentReceivedEvent;
+import com.tezza.lending.loan.api.dto.LoanResponse;
 import com.tezza.lending.loan.internal.entity.Loan;
 import com.tezza.lending.loan.internal.entity.enums.LoanStatus;
-import com.tezza.lending.loan.internal.repository.LoanRepository;
 import com.tezza.lending.repayment.api.dto.RepaymentRequest;
 import com.tezza.lending.repayment.internal.entity.enums.PaymentChannel;
 import com.tezza.lending.repayment.internal.repository.RepaymentRepository;
@@ -21,7 +22,6 @@ import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
@@ -32,31 +32,31 @@ import static org.mockito.Mockito.*;
 class RepaymentServiceTest {
 
     @Mock RepaymentRepository repaymentRepository;
-    @Mock LoanRepository loanRepository;
+    @Mock LoanService loanService;
     @Mock EntityManager entityManager;
     @Mock ApplicationEventPublisher eventPublisher;
     @InjectMocks RepaymentServiceImpl repaymentService;
 
-    private Loan openLoan;
+    private LoanResponse openLoanResponse;
     private RepaymentRequest validRequest;
 
     @BeforeEach
     void setUp() {
-        openLoan = new Loan();
-        openLoan.setId(UUID.randomUUID());
-        openLoan.setCustomerId(UUID.randomUUID());
-        openLoan.setLoanNumber("TZ-2026-00000001");
-        openLoan.setStatus(LoanStatus.OPEN);
-        openLoan.setOutstandingBalance(BigDecimal.valueOf(10000));
-        openLoan.setInstallments(new ArrayList<>());
+        Loan loan = new Loan();
+        loan.setId(UUID.randomUUID());
+        loan.setCustomerId(UUID.randomUUID());
+        loan.setLoanNumber("TZ-2026-00000001");
+        loan.setStatus(LoanStatus.OPEN);
+        loan.setOutstandingBalance(BigDecimal.valueOf(10000));
+        loan.setInstallments(new ArrayList<>());
+        openLoanResponse = LoanResponse.from(loan);
 
         validRequest = new RepaymentRequest();
-        validRequest.setLoanId(openLoan.getId());
+        validRequest.setLoanId(openLoanResponse.getId());
         validRequest.setAmount(BigDecimal.valueOf(3000));
         validRequest.setReference("MPESA-12345");
         validRequest.setChannel(PaymentChannel.MPESA);
 
-        // DEFAULT mock for entityManager queries (lenient — only some tests hit SP paths)
         Query mockQuery = mock(Query.class);
         lenient().when(mockQuery.setParameter(anyString(), any())).thenReturn(mockQuery);
         lenient().when(mockQuery.executeUpdate()).thenReturn(1);
@@ -66,22 +66,20 @@ class RepaymentServiceTest {
     @Test
     void processRepayment_partialPayment_callsStoredProcedures() {
         when(repaymentRepository.existsByReference("MPESA-12345")).thenReturn(false);
-        when(loanRepository.findById(openLoan.getId())).thenReturn(Optional.of(openLoan));
+        when(loanService.getRepayableLoan(openLoanResponse.getId())).thenReturn(openLoanResponse);
         when(repaymentRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         repaymentService.processRepayment(validRequest);
 
-        // VERIFY FIFO allocation SP was called
         verify(entityManager).createNativeQuery(contains("proc_allocate_repayment"));
-        // VERIFY close-if-paid SP was called
         verify(entityManager).createNativeQuery(contains("proc_close_loan_if_paid"));
     }
 
     @Test
     void processRepayment_closedLoan_throwsBusinessException() {
-        openLoan.setStatus(LoanStatus.CLOSED);
         when(repaymentRepository.existsByReference(any())).thenReturn(false);
-        when(loanRepository.findById(openLoan.getId())).thenReturn(Optional.of(openLoan));
+        when(loanService.getRepayableLoan(openLoanResponse.getId()))
+                .thenThrow(new BusinessException("Cannot process repayment for loan in status: CLOSED"));
 
         assertThatThrownBy(() -> repaymentService.processRepayment(validRequest))
                 .isInstanceOf(BusinessException.class)
@@ -100,7 +98,7 @@ class RepaymentServiceTest {
     @Test
     void processRepayment_publishesRepaymentReceivedEvent() {
         when(repaymentRepository.existsByReference(any())).thenReturn(false);
-        when(loanRepository.findById(openLoan.getId())).thenReturn(Optional.of(openLoan));
+        when(loanService.getRepayableLoan(openLoanResponse.getId())).thenReturn(openLoanResponse);
         when(repaymentRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         repaymentService.processRepayment(validRequest);
