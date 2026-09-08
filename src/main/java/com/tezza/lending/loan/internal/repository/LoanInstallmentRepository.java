@@ -12,4 +12,5 @@ public interface LoanInstallmentRepository extends JpaRepository<LoanInstallment
     List<LoanInstallment> findByLoanIdOrderByInstallmentNumberAsc(UUID loanId);
     List<LoanInstallment> findByLoanIdAndStatusOrderByDueDateAsc(UUID loanId, InstallmentStatus status);
     List<LoanInstallment> findByDueDateBeforeAndStatus(LocalDate date, InstallmentStatus status);
+    int countByLoanIdAndStatus(UUID loanId, InstallmentStatus status);
 }

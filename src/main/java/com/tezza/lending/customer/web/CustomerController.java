@@ -3,6 +3,7 @@ package com.tezza.lending.customer.web;
 import com.tezza.lending.customer.api.CustomerService;
 import com.tezza.lending.customer.api.dto.CustomerRequest;
 import com.tezza.lending.customer.api.dto.CustomerResponse;
+import com.tezza.lending.customer.api.dto.CustomerStatusRequest;
 import com.tezza.lending.customer.api.dto.LoanLimitRequest;
 import com.tezza.lending.customer.api.dto.LoanLimitResponse;
 import com.tezza.lending.customer.internal.entity.enums.CustomerStatus;
@@ -63,6 +64,14 @@ public class CustomerController {
     public ResponseEntity<ApiResponse<CustomerResponse>> update(
             @PathVariable UUID id, @Valid @RequestBody CustomerRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Customer updated", customerService.updateCustomer(id, request)));
+    }
+
+    @PatchMapping("/{id}/status")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Update customer status (ACTIVE, BLACKLISTED, INACTIVE)")
+    public ResponseEntity<ApiResponse<CustomerResponse>> updateStatus(
+            @PathVariable UUID id, @Valid @RequestBody CustomerStatusRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Customer status updated", customerService.updateStatus(id, request)));
     }
 
     @GetMapping("/{id}/loan-limit")
